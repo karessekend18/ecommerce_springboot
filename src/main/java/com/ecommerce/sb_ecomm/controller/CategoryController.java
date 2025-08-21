@@ -1,5 +1,6 @@
 package com.ecommerce.sb_ecomm.controller;
 
+import com.ecommerce.sb_ecomm.dto.CategoryRequest;
 import com.ecommerce.sb_ecomm.dto.CategoryResponse;
 import com.ecommerce.sb_ecomm.model.Category;
 import com.ecommerce.sb_ecomm.service.CategoryService;
@@ -27,9 +28,9 @@ public class CategoryController {
     }
 
     @PostMapping("/public/categories")
-    public ResponseEntity<String> createCategory(@Valid @RequestBody Category category){
-        categoryService.createCategory(category);
-        return new ResponseEntity<>("Category Added Successfully", HttpStatus.CREATED);
+    public ResponseEntity<CategoryRequest> createCategory(@Valid @RequestBody CategoryRequest categoryRequest){
+        CategoryRequest savedCategoryRequest = categoryService.createCategory(categoryRequest);
+        return new ResponseEntity<>(savedCategoryRequest, HttpStatus.CREATED);
     }
 
     @DeleteMapping("/admin/categories/{categoryId}")
