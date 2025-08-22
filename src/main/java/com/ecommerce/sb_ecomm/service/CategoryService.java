@@ -7,7 +7,7 @@ import com.ecommerce.sb_ecomm.model.Category;
 
 public interface CategoryService {
 
-    CategoryResponse getAllCategories(Integer pageNumber, Integer pageSize);
+    CategoryResponse getAllCategories(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
     CategoryRequest createCategory(CategoryRequest categoryRequest);
 
     CategoryRequest deleteCategory(Long categoryId);
