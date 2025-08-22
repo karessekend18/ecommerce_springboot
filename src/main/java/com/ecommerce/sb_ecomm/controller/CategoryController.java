@@ -5,6 +5,7 @@ import com.ecommerce.sb_ecomm.dto.CategoryResponse;
 import com.ecommerce.sb_ecomm.model.Category;
 import com.ecommerce.sb_ecomm.service.CategoryService;
 import jakarta.validation.Valid;
+import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,10 @@ public class CategoryController {
     @Autowired
     private CategoryService categoryService;
 
-
+    @GetMapping("/echo")
+    public ResponseEntity<String> echoMessage(@RequestParam(name="message") String message) {
+        return new ResponseEntity<>("Echoed message: " + message, HttpStatus.OK);
+    }
 
     @GetMapping("/public/categories")
     public ResponseEntity<CategoryResponse> getAllCategories() {
