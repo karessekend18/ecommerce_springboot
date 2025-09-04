@@ -2,6 +2,9 @@ package com.ecommerce.sb_ecomm.service;
 
 import com.ecommerce.sb_ecomm.dto.ProductRequest;
 import com.ecommerce.sb_ecomm.dto.ProductResponse;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 public interface ProductService {
 
@@ -16,4 +19,6 @@ public interface ProductService {
     ProductRequest updateProduct(ProductRequest product, Long productId);
 
     ProductRequest deleteProduct(Long productId);
+
+    ProductRequest updateProductImage(Long productId, MultipartFile image) throws IOException;
 }
