@@ -1,6 +1,7 @@
 package com.ecommerce.sb_ecomm.service.impl;
 
 import com.ecommerce.sb_ecomm.dto.ProductRequest;
+import com.ecommerce.sb_ecomm.dto.ProductResponse;
 import com.ecommerce.sb_ecomm.exceptions.ResourceNotFoundException;
 import com.ecommerce.sb_ecomm.model.Category;
 import com.ecommerce.sb_ecomm.model.Product;
@@ -10,6 +11,9 @@ import com.ecommerce.sb_ecomm.service.ProductService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -33,5 +37,40 @@ public class ProductServiceImpl implements ProductService {
         product.setSpecialPrice(specialPrice);
         Product savedProduct = productRepository.save(product);
         return modelMapper.map(savedProduct, ProductRequest.class);
+    }
+
+    @Override
+    public ProductResponse getAllProducts() {
+        List<Product> products = productRepository.findAll();
+        List<ProductRequest> productRequests = products.stream()
+                .map(product -> modelMapper.map(product, ProductRequest.class))
+                .toList();
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(productRequests);
+        return productResponse;
+    }
+
+    @Override
+    public ProductResponse searchByCategory(Long categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+        List<Product> products = productRepository.findByCategoryOrderByPriceAsc(category);
+        List<ProductRequest> productRequests = products.stream()
+                .map(product -> modelMapper.map(product, ProductRequest.class))
+                .toList();
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(productRequests);
+        return productResponse;
+    }
+
+    @Override
+    public ProductResponse searchProductsByKeyword(String keyword) {
+        List<Product> products = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%');
+        List<ProductRequest> productRequests = products.stream()
+                .map(product -> modelMapper.map(product, ProductRequest.class))
+                .toList();
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(productRequests);
+        return productResponse;
     }
 }
