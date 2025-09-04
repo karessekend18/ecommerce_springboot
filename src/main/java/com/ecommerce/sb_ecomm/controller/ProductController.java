@@ -41,4 +41,18 @@ public class ProductController {
         return new ResponseEntity<>(productResponse, HttpStatus.FOUND);
     }
 
+    @GetMapping("/admin/products/{productId}")
+    public ResponseEntity<ProductRequest> updateProduct(@RequestBody Product product,
+                                                        @PathVariable Long productId) {
+        ProductRequest productRequest = productService.updateProduct(product, productId);
+        return new ResponseEntity<>(productRequest, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/admin/products/{productId}")
+    public ResponseEntity<ProductRequest> deleteProduct(@PathVariable Long productId) {
+        ProductRequest productRequest = productService.deleteProduct(productId);
+        return new ResponseEntity<>(productRequest, HttpStatus.OK);
+    }
+
+
 }
