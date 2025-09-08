@@ -2,15 +2,22 @@ package com.ecommerce.sb_ecomm.service.impl;
 
 import com.ecommerce.sb_ecomm.dto.ProductRequest;
 import com.ecommerce.sb_ecomm.dto.ProductResponse;
+import com.ecommerce.sb_ecomm.exceptions.APIExceptions;
 import com.ecommerce.sb_ecomm.exceptions.ResourceNotFoundException;
 import com.ecommerce.sb_ecomm.model.Category;
 import com.ecommerce.sb_ecomm.model.Product;
 import com.ecommerce.sb_ecomm.repository.CategoryRepository;
 import com.ecommerce.sb_ecomm.repository.ProductRepository;
+import com.ecommerce.sb_ecomm.service.FileService;
 import com.ecommerce.sb_ecomm.service.ProductService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,22 +41,74 @@ public class ProductServiceImpl implements ProductService {
     @Autowired
     private ModelMapper modelMapper;
 
+    @Autowired
+    private FileService fileService;
+
+    @Value("${project.image}")
+    private String path;
+
     @Override
-    public ProductRequest addProduct(Long categoryId, ProductRequest productRequest)  {
+    public ProductRequest addProduct(Long categoryId, ProductRequest productRequest) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
-        Product product = modelMapper.map(productRequest, Product.class);
-        product.setImage("default.png");
-        product.setCategory(category);
-        double specialPrice = product.getPrice() - ((product.getDiscount() * 0.01) * product.getPrice());
-        product.setSpecialPrice(specialPrice);
-        Product savedProduct = productRepository.save(product);
-        return modelMapper.map(savedProduct, ProductRequest.class);
+        boolean isProductNotPresent = true;
+        List<Product> products = category.getProducts();
+        for (Product value : products) {
+            if (value.getProductName().equals(productRequest.getProductName())) {
+                isProductNotPresent = false;
+                break;
+            } else {
+                throw new APIExceptions("product already exists!!");
+            }
+        }
+        if (isProductNotPresent) {
+
+            Product product = modelMapper.map(productRequest, Product.class);
+            product.setImage("default.png");
+            product.setCategory(category);
+            double specialPrice = product.getPrice() - ((product.getDiscount() * 0.01) * product.getPrice());
+            product.setSpecialPrice(specialPrice);
+            Product savedProduct = productRepository.save(product);
+            return modelMapper.map(savedProduct, ProductRequest.class);
+        }
+        return modelMapper.map(productRequest, ProductRequest.class);
     }
 
     @Override
-    public ProductResponse getAllProducts() {
-        List<Product> products = productRepository.findAll();
+    public ProductResponse getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Product> pageProducts = productRepository.findAll(pageDetails);
+        List<Product> products = pageProducts.getContent();
+        List<ProductRequest> productRequests = products.stream()
+                .map(product -> modelMapper.map(product, ProductRequest.class))
+                .toList();
+
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(productRequests);
+        productResponse.setPageNumber(pageProducts.getNumber());
+        productResponse.setPageSize(pageProducts.getSize());
+        productResponse.setTotalElements(pageProducts.getTotalElements());
+        productResponse.setTotalPages(pageProducts.getTotalPages());
+        productResponse.setLastPage(pageProducts.isLast());
+        return productResponse;
+    }
+
+    @Override
+    public ProductResponse searchByCategory(Long categoryId, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Product> pageProducts = productRepository.findByCategoryOrderByPriceAsc(category, pageDetails);
+        List<Product> products = pageProducts.getContent();
+        if(products.isEmpty()){
+            throw new APIExceptions(category.getCategoryName());
+        }
         List<ProductRequest> productRequests = products.stream()
                 .map(product -> modelMapper.map(product, ProductRequest.class))
                 .toList();
@@ -59,24 +118,19 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse searchByCategory(Long categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
-        List<Product> products = productRepository.findByCategoryOrderByPriceAsc(category);
+    public ProductResponse searchProductsByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Product> pageProducts = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
+        List<Product> products = pageProducts.getContent();
         List<ProductRequest> productRequests = products.stream()
                 .map(product -> modelMapper.map(product, ProductRequest.class))
                 .toList();
-        ProductResponse productResponse = new ProductResponse();
-        productResponse.setContent(productRequests);
-        return productResponse;
-    }
-
-    @Override
-    public ProductResponse searchProductsByKeyword(String keyword) {
-        List<Product> products = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%');
-        List<ProductRequest> productRequests = products.stream()
-                .map(product -> modelMapper.map(product, ProductRequest.class))
-                .toList();
+        if(products.isEmpty()){
+            throw new APIExceptions("Products not found with keyword "+keyword);
+        }
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productRequests);
         return productResponse;
@@ -115,8 +169,8 @@ public class ProductServiceImpl implements ProductService {
     public ProductRequest updateProductImage(Long productId, MultipartFile image) throws IOException {
         Product productFromDb = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
-        String path = "images/";
-        String fileName = uploadImage(path, image);
+
+        String fileName = fileService.uploadImage(path, image);
         productFromDb.setImage(fileName);
         Product updatedProduct = productRepository.save(productFromDb);
         return modelMapper.map(updatedProduct, ProductRequest.class);
