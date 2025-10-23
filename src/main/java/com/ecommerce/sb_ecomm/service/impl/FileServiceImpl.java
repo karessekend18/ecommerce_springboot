@@ -13,7 +13,7 @@ import java.util.UUID;
 public class FileServiceImpl implements FileService {
 
     @Override
-    private String uploadImage(String path, MultipartFile file) throws IOException {
+    public String uploadImage(String path, MultipartFile file) throws IOException {
         String originalFilename = file.getOriginalFilename();
         String randomId = UUID.randomUUID().toString();
         String fileName = randomId.concat(originalFilename.substring(originalFilename.lastIndexOf(".")));
